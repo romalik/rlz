@@ -17,12 +17,16 @@ class RLZCompressor {
 
 public:
     typedef uint32_t code_t;
-    static const code_t code_t_max = 0xffffffff;
-    static const code_t code_t_bits = 32;
-    static const code_t code_q = code_t_max >> 2;
-    static const code_t code_h = code_t_max >> 1;
-    static const code_t code_3q = code_q + code_h;
-    static const code_t code_max_freq = code_t_max >> 2 - 1;
+
+    static const code_t code_t_base_bits = 32;
+
+    static const code_t code_t_bits = (code_t_base_bits + 3) / 2;
+    static const code_t code_t_freq_bits = (code_t_base_bits - code_t_bits);
+    static const code_t code_t_max = (1ULL << (code_t_bits)) - 1;
+    static const code_t code_q = (1ULL << (code_t_bits - 2));
+    static const code_t code_h = 2*code_q;
+    static const code_t code_3q = 3*code_q;
+    static const code_t code_max_freq = (1ULL << (code_t_freq_bits)) - 1;//(code_t_max >> 2);
 
 
     struct Segment {
@@ -48,9 +52,9 @@ public:
 
 
     RLZCompressor() {
-        freqs.resize(256,0);
         charToIdxMap.resize(256,-1);
-        freqsRaw.resize(256,0);
+        freqsRaw.resize(257,1);
+        freqsRaw[0] = 256;
         extBits = 0;
         eByte = 0;
         eBitPtr = 7;
@@ -64,11 +68,14 @@ public:
     std::vector<char> data;
     std::vector<Segment> freqsMap;
     std::vector<int> charToIdxMap;
-    std::vector<uint32_t> freqsRaw;
+    std::vector<code_t> freqsRaw;
 
     std::vector<char> result;
 
     void addSymbolToModel(int symbol);
+
+    std::vector<int> addQueue;
+    void requestAddSymbolToModel(int symbol);
 
     int compMode;
     int adaptiveBlockSize;
@@ -103,7 +110,7 @@ public:
     int eBitPtr;
     int extBits;
     void emitBit(int bit) {
-        printf("BIT %d\n", bit?1:0);
+        //printf("BIT %d\n", bit?1:0);
         if(bit) {
             eByte |= (1<<eBitPtr);
         } else {
@@ -112,7 +119,7 @@ public:
         eBitPtr--;
         if(eBitPtr < 0) {
             eBitPtr = 7;
-            printf("Byte 0x%02X\n", eByte);
+            //printf("Byte 0x%02X\n", eByte);
             result.push_back(eByte);
             eByte = 0;
         }
@@ -121,7 +128,7 @@ public:
     void stopEmitter() {
         if(eBitPtr < 7) {
             result.push_back(eByte);
-            printf("Final Byte 0x%02X\n", eByte);
+            //printf("Final Byte 0x%02X\n", eByte);
             eByte = 0;
             eBitPtr = 7;
         }

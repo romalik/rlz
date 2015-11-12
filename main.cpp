@@ -40,6 +40,7 @@ void writeToFile(std::string filename, std::vector<char> & src) {
     std::ofstream file(filename.c_str(), std::ios::binary | std::ios::out);
 
     file.write(src.data(), src.size());
+    file.close();
 }
 
 void badcommand(char ** argv) {
@@ -84,9 +85,28 @@ int main(int argc, char ** argv) {
         printf("File %s loaded, size %lu\n", argv[2], sz);
 
         if(sz) {
-            compressor.buildModel();
+            //table occupies 4*256 bytes = 1Kb. Generate custom table for big files only > 8Kb;
+/*
+            if(sz > 8 * 1024) {
+                compressor.compMode = RLZCompressor::COMP_MODEL_CUSTOM;
+            } else {
+                compressor.compMode = RLZCompressor::COMP_MODEL_ADAPTIVE;
+            }
+*/
+            if(!strcmp(argv[argc-1], "--force-fixed")) {
+                compressor.compMode = RLZCompressor::COMP_MODEL_FIXED;
+            } else if(!strcmp(argv[argc-1], "--force-adaptive")) {
+                compressor.compMode = RLZCompressor::COMP_MODEL_ADAPTIVE;
+            } else if(!strcmp(argv[argc-1], "--force-custom")) {
+                compressor.compMode = RLZCompressor::COMP_MODEL_CUSTOM;
+            }
+
+            if(compressor.compMode == RLZCompressor::COMP_MODEL_CUSTOM) {
+                compressor.buildModel();
+            }
             compressor.normModel();
 
+            /*
             for(int i = 0; i<compressor.freqs.size(); i++) {
                 printf("%d\t[%c]\t: %f\n", i, ((i>32)&&(i<127))?i:' ', compressor.freqs[i]);
             }
@@ -98,11 +118,19 @@ int main(int argc, char ** argv) {
                 double h = compressor.freqsMap[i].high;
                 printf("%d\t[%c]\t: %1.9f : %1.9f [%f]\n", v, ((v>32)&&(v<127))?v:' ', l, h, compressor.freqsMap[i].length);
             }
+*/
             printf("\n");
             compressor.compress();
             printf("\n");
 
-
+/*
+            compressor.data = compressor.result;
+            compressor.result.clear();
+            compressor.decompress(sz);
+            compressor.result.push_back(0);
+            printf("String: %s\n", compressor.result.data());
+            while(1) {}
+*/
             /* File Format
              * 0: R     //magic
              * 1: L     //magic
@@ -130,8 +158,8 @@ int main(int argc, char ** argv) {
                 output.push_back('F'); //fixed
             } else if(compressor.compMode == RLZCompressor::COMP_MODEL_ADAPTIVE) {
                 output.push_back('A'); //adaptive
-                output.push_back((compressor.adaptiveBlockSize >> 8) & 0xff ); //block size High byte
-                output.push_back((compressor.adaptiveBlockSize) & 0xff ); //block size Low byte
+                //output.push_back((compressor.adaptiveBlockSize >> 8) & 0xff ); //block size High byte
+                //output.push_back((compressor.adaptiveBlockSize) & 0xff ); //block size Low byte
             }
 
             if(compressor.compMode == RLZCompressor::COMP_MODEL_CUSTOM) {
@@ -164,9 +192,9 @@ int main(int argc, char ** argv) {
         compressor.buildModel();
 
         printf("Model generated\n ===== Cut Here ===== \n");
-        printf("double staticFreqs[] = { \n");
-        for(int i = 0; i<compressor.freqs.size(); i++) {
-            printf(" /* %d */ %f, ", i, compressor.freqs[i]);
+        printf("code_t staticFreqs[] = { \n");
+        for(int i = 0; i<compressor.freqsRaw.size(); i++) {
+            printf(" /* %d */ %llu, ", i, compressor.freqsRaw[i]);
         }
         printf(" 0 }; \n");
     } else if(mode == MODE_DECOMPRESS) {
@@ -190,15 +218,15 @@ int main(int argc, char ** argv) {
             }
             if(data[4] == 'C') {
                 compressor.compMode = RLZCompressor::COMP_MODEL_CUSTOM;
-                std::vector<char> tPacked(data.begin() + 5, data.begin() + 5 + 256 * 4);
+                std::vector<char> tPacked(data.begin() + 5, data.begin() + 5 + 257 * 4);
                 compressor.unpackTable(tPacked);
-                data.erase(data.begin(), data.begin() + 5 + 256 * 4);
+                data.erase(data.begin(), data.begin() + 5 + 257 * 4);
             } else if(data[4] == 'F') {
                 compressor.compMode = RLZCompressor::COMP_MODEL_FIXED;
                 data.erase(data.begin(), data.begin() + 4);
             } else if(data[4] == 'A') {
                 compressor.compMode = RLZCompressor::COMP_MODEL_ADAPTIVE;
-                compressor.adaptiveBlockSize = (data[5] << 8) + data[6];
+                //compressor.adaptiveBlockSize = (static_cast<unsigned char>(data[5]) << 8) + static_cast<unsigned char>(data[6]);
                 data.erase(data.begin(), data.begin() + 6);
             } else {
                 printf("Bad file - unsupported freq table method!\n");
@@ -209,28 +237,31 @@ int main(int argc, char ** argv) {
             int lengthIdx = 0;
             //length
             for(int k = 3; k >=0; k--) {
-                length |= (data[lengthIdx] << (k*8));
+                length |= (static_cast<unsigned char>(data[lengthIdx]) << (k*8));
                 lengthIdx++;
             }
-            data.erase(data.begin(), data.begin()+3);
+            data.erase(data.begin(), data.begin()+4);
             compressor.normModel();
             compressor.data = data;
-
+/*
             for(int i = 0; i<compressor.freqs.size(); i++) {
                 printf("%d\t[%c]\t: %f\n", i, ((i>32)&&(i<127))?i:' ', compressor.freqs[i]);
             }
-
+*/
             printf("============= Sorted =============\n");
             for(int i = 0; i<compressor.freqsMap.size(); i++) {
                 int v = compressor.freqsMap[i].value;
-                double l = compressor.freqsMap[i].low;
-                double h = compressor.freqsMap[i].high;
-                printf("%d\t[%c]\t: %1.9f : %1.9f [%f]\n", v, ((v>32)&&(v<127))?v:' ', l, h, compressor.freqsMap[i].length);
+                int l = compressor.freqsMap[i].low;
+                int h = compressor.freqsMap[i].high;
+                printf("%d\t[%c]\t: %d : %d [%d]\n", v, ((v>32)&&(v<127))?v:' ', l, h, compressor.freqsMap[i].length);
             }
+
             printf("\n");
 
             compressor.decompress(length);
             printf("\n");
+            writeToFile(argv[3], compressor.result);
+
         }
 
 
