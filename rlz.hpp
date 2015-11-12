@@ -126,12 +126,12 @@ public:
     }
 
     void stopEmitter() {
-        if(eBitPtr < 7) {
+        //if(eBitPtr < 7) {
             result.push_back(eByte);
             //printf("Final Byte 0x%02X\n", eByte);
             eByte = 0;
             eBitPtr = 7;
-        }
+        //}
     }
 
     void pushBit(int bit) {

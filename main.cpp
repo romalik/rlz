@@ -85,14 +85,14 @@ int main(int argc, char ** argv) {
         printf("File %s loaded, size %lu\n", argv[2], sz);
 
         if(sz) {
-            //table occupies 4*256 bytes = 1Kb. Generate custom table for big files only > 8Kb;
-/*
-            if(sz > 8 * 1024) {
+            //table occupies 4*256 bytes = 1Kb. Generate custom table for big files only > 16Kb;
+
+            if(sz > 16 * 1024) {
                 compressor.compMode = RLZCompressor::COMP_MODEL_CUSTOM;
             } else {
                 compressor.compMode = RLZCompressor::COMP_MODEL_ADAPTIVE;
             }
-*/
+
             if(!strcmp(argv[argc-1], "--force-fixed")) {
                 compressor.compMode = RLZCompressor::COMP_MODEL_FIXED;
             } else if(!strcmp(argv[argc-1], "--force-adaptive")) {
@@ -119,9 +119,7 @@ int main(int argc, char ** argv) {
                 printf("%d\t[%c]\t: %1.9f : %1.9f [%f]\n", v, ((v>32)&&(v<127))?v:' ', l, h, compressor.freqsMap[i].length);
             }
 */
-            printf("\n");
             compressor.compress();
-            printf("\n");
 
 /*
             compressor.data = compressor.result;
@@ -135,10 +133,8 @@ int main(int argc, char ** argv) {
              * 0: R     //magic
              * 1: L     //magic
              * 2: Z     //magic
-             * 3: A/P   //arithm / ppm
-             * 4: C/F/A //model: custom/fixed/adaptive
-             * [ASHigh] //adaptive only: high byte of adaptive block size
-             * [ASLow]  //adaptive only: low byte of adaptive block size
+             * 3: A/P   //arithm / ppm (ppm not implemented)
+             * 4: C/A //model: custom/adaptive
              * [CTable ...] //Custom Freq Table (32 bit big-endian * 256)
              * S3       //total inflated size big-endian
              * S2
@@ -178,7 +174,7 @@ int main(int argc, char ** argv) {
 
             writeToFile(argv[3], output);
 
-
+            printf("Compression completed\n");
         }
     } else if(mode == MODE_GENERATE_MODEL) {
         RLZCompressor compressor;
@@ -223,11 +219,11 @@ int main(int argc, char ** argv) {
                 data.erase(data.begin(), data.begin() + 5 + 257 * 4);
             } else if(data[4] == 'F') {
                 compressor.compMode = RLZCompressor::COMP_MODEL_FIXED;
-                data.erase(data.begin(), data.begin() + 4);
+                data.erase(data.begin(), data.begin() + 5);
             } else if(data[4] == 'A') {
                 compressor.compMode = RLZCompressor::COMP_MODEL_ADAPTIVE;
                 //compressor.adaptiveBlockSize = (static_cast<unsigned char>(data[5]) << 8) + static_cast<unsigned char>(data[6]);
-                data.erase(data.begin(), data.begin() + 6);
+                data.erase(data.begin(), data.begin() + 5);
             } else {
                 printf("Bad file - unsupported freq table method!\n");
                 exit(1);
@@ -247,7 +243,7 @@ int main(int argc, char ** argv) {
             for(int i = 0; i<compressor.freqs.size(); i++) {
                 printf("%d\t[%c]\t: %f\n", i, ((i>32)&&(i<127))?i:' ', compressor.freqs[i]);
             }
-*/
+
             printf("============= Sorted =============\n");
             for(int i = 0; i<compressor.freqsMap.size(); i++) {
                 int v = compressor.freqsMap[i].value;
@@ -257,10 +253,10 @@ int main(int argc, char ** argv) {
             }
 
             printf("\n");
-
+*/
             compressor.decompress(length);
-            printf("\n");
             writeToFile(argv[3], compressor.result);
+            printf("Decompression completed\n");
 
         }
 

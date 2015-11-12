@@ -24,29 +24,22 @@ void RLZCompressor::addSymbolToModel(int symbol) {
     } else {
         return;
     }
-/*
-    //scale down on overflow
-    if(freqsRaw[0] > code_max_freq) {
-        for(int i = 0; i<freqsRaw.size(); i++) {
-            //do not allow zero for non-zero freqs
-            if(freqsRaw[i]>1) {
-                freqsRaw[i] /= 2;
-            }
-        }
-    }
-    */
+
 }
 
 
 void RLZCompressor::requestAddSymbolToModel(int symbol) {
-    addQueue.push_back(symbol);
+    if(freqsRaw[0] < code_max_freq) {
+        addQueue.push_back(symbol);
 
-    if(addQueue.size() >= adaptiveBlockSize) {
-        for(int i = 0; i<addQueue.size(); i++) {
-            addSymbolToModel(addQueue[i]);
+        if(addQueue.size() >= adaptiveBlockSize) {
+            for(int i = 0; i<addQueue.size(); i++) {
+                addSymbolToModel(addQueue[i]);
+            }
+            addQueue.clear();
+            normModel();
         }
-        addQueue.clear();
-        normModel();
+
     }
 }
 
@@ -71,120 +64,7 @@ void RLZCompressor::normModel() {
 
 
 }
-#if 0
-int RLZCompressor::compress() {
-    double cHigh = 1.0f;
-    double cLow = 0.0f;
-    for(int i = 0; i<data.size(); i++) {
-        double cLength = cHigh - cLow;
-        int cVal = data[i];
-        Segment nSegment = freqsMap[charToIdxMap[cVal]];
-        cLow += nSegment.low * cLength;
-        cHigh = cLow + nSegment.length * cLength;
 
-
-        printf("cVal: %d cLow %f cHigh %f cLength %f\n", cVal, cLow, cHigh, cHigh - cLow);
-
-        //normalize it!
-        while(1) {
-            if(cHigh < 0.5) {
-                pushBit(0);
-            } else if(cLow >= 0.5f) {
-                pushBit(1);
-                cLow -= 0.5f;
-                cHigh -= 0.5f;
-            } else if(cLow >= 0.25f && cHigh < 0.75f) {
-                addBit();
-                cLow -= 0.25f;
-                cHigh -= 0.25f;
-            } else {
-                break;
-            }
-            cLow *= 2.0f;
-            cHigh *= 2.0f;
-
-        }
-
-        printf("cVal: %d cLow %f cHigh %f cLength %f --norm\n", cVal, cLow, cHigh, cHigh - cLow);
-
-    }
-    addBit();
-    if(cLow < 0.25f) {
-        pushBit(0);
-    } else {
-        pushBit(1);
-    }
-    stopEmitter();
-    return 1;
-}
-
-
-int RLZCompressor::decompress(size_t sz) {
-    double cHigh = 1.0f;
-    double cLow = 0.0f;
-    int nBitsRead = 0;
-    double value = 0;
-
-    while(1) {
-        int nBit = aquireBit();
-        nBitsRead++;
-        value += static_cast<double>(nBit) / static_cast<double>(nBitsRead + 1);
-
-        for(int i = 0; i<freqsMap.size(); i++) {
-            if(value >= freqsMap[i].low && value < freqsMap[i].high) {
-                cLow = freqsMap[i].low;
-                cHigh = freqsMap[i].high;
-                result.push_back(freqsMap[i].value);
-                printf("Decoded: %c\n", freqsMap[i].value);
-                break;
-            }
-        }
-    }
-
-    while(result.size()<sz) {
-
-
-        while(1) {
-            if(cHigh < 0.5) {
-
-            } else if(cLow >= 0.5f) {
-                value -= 0.5f;
-                cLow -= 0.5f;
-                cHigh -= 0.5f;
-                //nBitsRead--;
-            } else if(cLow >= 0.25f && cHigh < 0.75f) {
-                value -= 0.25f;
-                cLow -= 0.25f;
-                cHigh -= 0.25f;
-                //nBitsRead--;
-            } else {
-                break;
-            }
-            cLow *= 2.0f;
-            cHigh *= 2.0f;
-            int nBit = aquireBit();
-            //nBitsRead++;
-            value = value * 2.0f + static_cast<double>(nBit) / static_cast<double>(nBitsRead + 1);
-        }
-
-        for(int i = 0; i<freqsMap.size(); i++) {
-            if(value >= freqsMap[i].low && value < freqsMap[i].high) {
-                cLow = freqsMap[i].low;
-                cHigh = freqsMap[i].high;
-                result.push_back(freqsMap[i].value);
-                printf("Decoded: %c\n", freqsMap[i].value);
-
-                break;
-            }
-        }
-
-
-    }
-    return 1;
-
-}
-
-#endif
 
 int RLZCompressor::compress() {
     code_t cHigh = code_t_max;
@@ -299,7 +179,7 @@ int RLZCompressor::decompress(size_t sz) {
 
         }
     }
-    printf("End!! Sz: %d\n", sz);
+    //printf("End!! Sz: %d\n", sz);
     return 1;
 
 }
