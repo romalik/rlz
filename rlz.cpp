@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <fstream>
 #include <vector>
-#include <stdint.h>
+//#include <stdint.h>
 #include "rlz.hpp"
 
 static bool __freqMapCmp(std::pair<int,double> a, std::pair<int,double> b) {
@@ -14,6 +14,7 @@ int RLZCompressor::buildModel() {
     for(size_t i = 0; i<data.size(); i++) {
         addSymbolToModel(static_cast<unsigned char>(data[i]));
     }
+	return 0;
 }
 
 void RLZCompressor::addSymbolToModel(int symbol) {
@@ -205,7 +206,7 @@ void RLZCompressor::unpackTable(std::vector<char> &tPacked) {
     freqsRaw.clear();
     int tIdx = 0;
     for(int i = 0; i<257; i++) {
-        uint32_t val = 0;
+        unsigned long long val = 0;
         for(int k = 3; k >=0; k--) {
             val |= (static_cast<unsigned char>(tPacked[tIdx]) << (k*8));
             tIdx++;

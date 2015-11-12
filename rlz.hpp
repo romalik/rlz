@@ -8,7 +8,7 @@
 #include <vector>
 #include <deque>
 #include <map>
-#include <stdint.h>
+//#include <stdint.h>
 #include <algorithm>
 #include <limits.h>
 
@@ -16,7 +16,7 @@
 class RLZCompressor {
 
 public:
-    typedef uint32_t code_t;
+    typedef unsigned long long code_t;
 
     static const code_t code_t_base_bits = 32;
 

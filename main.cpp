@@ -29,7 +29,7 @@ size_t loadFileToMem(std::string filename, std::vector<char> & dest) {
     dest.clear();
     dest.resize(sz);
 
-    if (!file.read(dest.data(), sz)) {
+    if (!file.read(&dest[0], sz)) {
         return 0;
     } else {
         return sz;
@@ -39,7 +39,7 @@ size_t loadFileToMem(std::string filename, std::vector<char> & dest) {
 void writeToFile(std::string filename, std::vector<char> & src) {
     std::ofstream file(filename.c_str(), std::ios::binary | std::ios::out);
 
-    file.write(src.data(), src.size());
+    file.write(&src[0], src.size());
     file.close();
 }
 
@@ -204,7 +204,7 @@ int main(int argc, char ** argv) {
 
             //parse header. I know, sequental std::vector.erase(begin) is really bad, no time to optimize right now
 
-            if(memcmp(data.data(), "RLZ", 3)) {
+            if(memcmp(&data[0], "RLZ", 3)) {
                 printf("Bad file - magic not found!\n");
                 exit(1);
             }
